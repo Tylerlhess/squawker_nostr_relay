@@ -1,0 +1,68 @@
+DEBUG: false
+
+storage:
+  sqlalchemy.url: 'sqlite+aiosqlite:///:memory:'
+  validators:
+    - nostr_relay.validators.is_not_too_large
+    - nostr_relay.validators.is_signed
+    - nostr_relay.validators.is_recent
+
+oldest_event: 315360000
+relay_name: test relay
+relay_description: test relay description
+sysop_pubkey: 1234
+sysop_contact: 5678
+
+# options are disabled, passive, enabled
+nip05_verification: disabled
+verification_expiration: 86400 * 30
+verification_update_frequency: 3600
+#verification_blacklist:
+# - badhost.biz
+#verification_whitelist:
+# - goodhost.com
+garbage_collector:
+  collect_interval: 300
+
+rate_limits:
+  ip:
+    EVENT: 10/s
+    CLOSE: 10/s
+
+origin_blacklist:
+  - http://bad.actor
+
+gunicorn:
+  bind: 127.0.0.1:6969
+  workers: 1
+  loglevel: info
+  reload: false
+  proc_name: test
+
+authentication:
+  enabled: false
+  actions:
+    query: a
+    save: a
+
+service_privatekey: 9627da965699a2a3048f97b77df5047e8cd0d11daca75e7687d0b28b65416a3c
+
+logging:
+  version: 1
+  formatters:
+    simple:
+      format: '%(asctime)s - %(name)s - %(levelname)s - {%(pathname)s:%(lineno)d} %(message)s'
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      stream: ext://sys.stderr
+  loggers:
+    nostr_relay:
+      level: DEBUG
+      handlers: [console]
+      propagate: no
+  root:
+    level: INFO
+    handlers: [console]
