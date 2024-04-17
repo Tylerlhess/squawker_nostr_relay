@@ -145,6 +145,11 @@ class RVNStorage(DBStorage):
         # TODO: querying the blockchain
         pass
 
+    async def write_event_to_blockchain(event, asset=ASSETNAME):
+        # TODO: write to the blockchain requires rav_utils to handle server creation.
+        pass
+
+
     async def add_event(self, event_json, auth_token=None):
         """
         Add an event from json object
