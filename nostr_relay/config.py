@@ -14,7 +14,22 @@ class ConfigClass:
         self.authentication = {}
         self.gunicorn = {"bind": "127.0.0.1:6969"}
         self.storage = {
-            "sqlalchemy.url": "sqlite+aiosqlite:///:memory:",
+            "sqlalchemy.url": "sqlite+aiosqlite:///:memory:", 
+        }
+        self.ravencoin = {
+            "active": False,
+            "credentials": {
+                "user": "username",
+                "password": "Iamabadpassword",
+            },
+            "rpc_port": "8766",
+            "ipfs_host": "/dns/localhost/tcp/5001/http",
+            "ipfs_host_fallback": "/dns/squawker.app/tcp/8080/http",
+            "asset_names": ["SQUAWKER"],
+            "ipfs_dir_path": os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "storage/ipfs")
+            ),
+            "wallet_address": "RD5Pdw69JKYHFpxMqyeJz1aXvUtBvpjiJS",
         }
         self.verification = {
             "nip05_verification": "disabled",

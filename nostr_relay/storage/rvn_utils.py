@@ -1,6 +1,37 @@
+from ..config import Config
+# TODO: test this to a call to the config. Import only if RVN is enabled and build server essentials into rvn_utils
+if Config.ravencoin["active"]:
+    from ravenrpc import Ravencoin
+    import ipfshttpclient
 
-# TODO: convert this to a call to the config. Import only if RVN is enabled and build server essentials into rvn_utils
-from ServerEssentials.serverside import *
+    USER = Config.ravencoin["credentials"]["user"]
+    PASSWORD = Config.ravencoin["credentials"]["password"]
+    PORT = Config.ravencoin["rpc_port"]
+
+    try:
+        rvn = Ravencoin(USER, PASSWORD, port=PORT)
+        rvn.getblockchaininfo()
+    except:
+        if not rvn:
+            rvn = None
+        print("Ravnecoin is active but cannot connect to rpc node.")
+        exit(1)
+
+    try:
+        ipfs = ipfshttpclient.connect(Config.ravencoin["ipfs_host"])
+    except Exception as e:
+        try:
+            ipfs = ipfshttpclient.connect(Config.ravencoin["ipfs_host_fallback"])
+        except Exception as f:
+            print("Both IPFS hosts failed to connect.")
+            exit(1)
+
+    ASSETNAMES = Config.ravencoin["asset_names"]
+    IPFSDIRPATH = Config.ravencoin["ipfs_dir_path"]
+    WALLET_ADDRESS = Config.ravencoin["wallet_address"]
+
+
+
 import inspect
 
 
@@ -31,22 +62,24 @@ def tx_to_self(tx, size=1.00):
     return len(neg_delta)
 
 
-def find_latest_flags(asset=ASSETNAME, satoshis=100000000, count=50):
+def find_latest_flags(asset=ASSETNAMES, satoshis=100000000, count=50):
     try:
-        latest = []
-        if logger: logger.info(f"asset is {asset} satoshis {satoshis}")
-        messages = dict()
-        try:
-            messages["addresses"] = list(rvn.listaddressesbyasset(asset, False)["result"])
-            if logger: logger.info(f"addresses {messages['addresses']}")
-            messages["assetName"] = asset
-            prelim = rvn.getaddressdeltas(messages)
-            if logger: logger.info(f"prelim = {prelim}")
-            deltas = prelim["result"]
-        except IndexError:
-            if logger: logger.info(f"*********************!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        except Exception as e:
-            log_and_raise(e)
+        deltas = []
+        for _asset in asset:
+            latest = []
+            if logger: logger.info(f"asset is {_asset} satoshis {satoshis}")
+            messages = dict()
+            try:
+                messages["addresses"] = list(rvn.listaddressesbyasset(_asset, False)["result"])
+                if logger: logger.info(f"addresses {messages['addresses']}")
+                messages["assetName"] = _asset
+                prelim = rvn.getaddressdeltas(messages)
+                if logger: logger.info(f"prelim = {prelim}")
+                deltas.extend(prelim["result"])
+            except IndexError:
+                if logger: logger.info(f"*********************!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            except Exception as e:
+                log_and_raise(e)
         for tx in deltas:
             if logger: logger.info(f"{int(str(tx['satoshis']))} - {int(str(satoshis))} = {int(str(tx['satoshis'])) - int(str(satoshis))}")
             if not (int(str(tx['satoshis'])) - int(str(satoshis))):
@@ -58,7 +91,7 @@ def find_latest_flags(asset=ASSETNAME, satoshis=100000000, count=50):
                     # if logger: logger.info(f"transaction is {transaction}")
                     for vout in transaction["vout"]:
                         vout = vout["scriptPubKey"]
-                        if vout["type"] == "transfer_asset" and vout["asset"]["name"] == asset and vout["asset"]["amount"] == satoshis/100000000:
+                        if vout["type"] == "transfer_asset" and vout["asset"]["name"] in asset and vout["asset"]["amount"] == satoshis/100000000:
                             kaw = {
                                 "address": vout["addresses"],
                                 "message": vout["asset"]["message"],
