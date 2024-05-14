@@ -8,7 +8,7 @@ recording events. Each recorded event will also have a Ravencoin transaction
 cost which currently is many fractions of a penny."""
 
 
-from rvnserver import *
+
 import asyncio
 import logging
 from datetime import datetime
@@ -29,6 +29,7 @@ from ..util import (
 from . import get_metadata
 from .base import BaseSubscription, BaseGarbageCollector, NostrQuery
 from .db import DBStorage, event_from_tuple, validate_id
+from .rvn_utils import *
 
 
 force_hex_translation = str.maketrans(
@@ -86,12 +87,9 @@ def event_from_tuple(row):
 class RVNStorage(DBStorage):
     
     def __init__(self, options):
-        self.options, self.rvn = self.parse_rvn_options(options)
+        self.options, self.rvn_options = self.parse_rvn_options(options)
         super().__init__(options)
-        try:
-            self.rpc_port = self.rvn["rpc_port"]
-        except:
-            self.rpc_port = 8766
+        self.rvnrpc = rvn 
 
     def parse_rvn_options(self, options):
         storage_options, rvn_options = {}, {}

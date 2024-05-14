@@ -1,34 +1,34 @@
 from ..config import Config
 # TODO: test this to a call to the config. Import only if RVN is enabled and build server essentials into rvn_utils
-if Config.ravencoin["active"]:
-    from ravenrpc import Ravencoin
-    import ipfshttpclient
+from ravenrpc import Ravencoin
+import ipfshttpclient
 
-    USER = Config.ravencoin["credentials"]["user"]
-    PASSWORD = Config.ravencoin["credentials"]["password"]
-    PORT = Config.ravencoin["rpc_port"]
+USER = Config.ravencoin["credentials"]["user"]
+PASSWORD = Config.ravencoin["credentials"]["password"]
+HOST = Config.ravencoin["rpc_host"]
+PORT = Config.ravencoin["rpc_port"]
 
+try:
+    rvn = Ravencoin(USER, PASSWORD, host=HOST, port=PORT)
+    rvn.getblockchaininfo()
+except:
+    if not rvn:
+        rvn = None
+    print("Ravnecoin is active but cannot connect to rpc node.")
+    exit(1)
+
+try:
+    ipfs = ipfshttpclient.connect(Config.ravencoin["ipfs_host"])
+except Exception as e:
     try:
-        rvn = Ravencoin(USER, PASSWORD, port=PORT)
-        rvn.getblockchaininfo()
-    except:
-        if not rvn:
-            rvn = None
-        print("Ravnecoin is active but cannot connect to rpc node.")
+        ipfs = ipfshttpclient.connect(Config.ravencoin["ipfs_host_fallback"])
+    except Exception as f:
+        print("Both IPFS hosts failed to connect.")
         exit(1)
 
-    try:
-        ipfs = ipfshttpclient.connect(Config.ravencoin["ipfs_host"])
-    except Exception as e:
-        try:
-            ipfs = ipfshttpclient.connect(Config.ravencoin["ipfs_host_fallback"])
-        except Exception as f:
-            print("Both IPFS hosts failed to connect.")
-            exit(1)
-
-    ASSETNAMES = Config.ravencoin["asset_names"]
-    IPFSDIRPATH = Config.ravencoin["ipfs_dir_path"]
-    WALLET_ADDRESS = Config.ravencoin["wallet_address"]
+ASSETNAMES = Config.ravencoin["asset_names"]
+IPFSDIRPATH = Config.ravencoin["ipfs_dir_path"]
+WALLET_ADDRESS = Config.ravencoin["wallet_address"]
 
 
 
@@ -141,6 +141,7 @@ def make_change(transaction):
     if logger: logger.info(f"setting rvn output amount to {rvn_amount} ")
     if change:
         transaction['outputs'][TEST_WALLET_ADDRESS] = {"transfer": {asset: change}}
+        # TODO: move this function to raw transactions so ting.finance can fully support RPC calls.
         sendback = rvn.transferfromaddress({"asset": asset, "from_address": TEST_WALLET_ADDRESS, "amount": change, "to_address": address})
         if logger: logger.info(f"sendback results are {sendback}")
         if logger: logger.info(f"transaction = {transaction}")

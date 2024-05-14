@@ -22,6 +22,7 @@ class ConfigClass:
                 "user": "username",
                 "password": "Iamabadpassword",
             },
+            "rpc_host": "https://rvn-rpc-mainnet.ting.finance/rpc",
             "rpc_port": "8766",
             "ipfs_host": "/dns/localhost/tcp/5001/http",
             "ipfs_host_fallback": "/dns/squawker.app/tcp/8080/http",
