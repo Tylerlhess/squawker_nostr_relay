@@ -2,6 +2,13 @@ from ..config import Config
 # TODO: test this to a call to the config. Import only if RVN is enabled and build server essentials into rvn_utils
 from ravenrpc import Ravencoin
 import ipfshttpclient
+from ..util import (
+    object_from_path,
+    json_dumps,
+    json_loads,
+)
+from aionostr.event import Event, EventKind
+
 
 USER = Config.ravencoin["credentials"]["user"]
 PASSWORD = Config.ravencoin["credentials"]["password"]
@@ -52,8 +59,36 @@ else:
     logger = 0
 
 
+def ipfs_to_dict(ipfs_hash: str) -> dict:
+    return json_loads(ipfs.cat(ipfs_hash))
 
-def tx_to_self(tx, size=1.00):
+
+def event_from_blockchain(ipfs_file_hash):
+    # TODO: handle events coming from the blockchain 
+    jd = ipfs_to_dict(ipfs_file_hash)
+
+    # ##### create event
+    # def __init__(
+    #         self,
+    #         pubkey: str='', 
+    #         content: str='', 
+    #         created_at: int=0, 
+    #         kind: int=EventKind.TEXT_NOTE, 
+    #         tags: "list[list[str]]"=[], 
+    #         id: str=None,
+    #         sig: str=None) -> None:
+    
+    return Event(
+        id=jd["id"].hex(),
+        created_at=jd['created_at'],
+        kind=jd["kind"],
+        pubkey=jd["pubkey"].hex(),
+        tags=jd["tags"],
+        sig=jd["sig"].hex(),
+        content=jd["content"],
+    )
+
+def tx_to_self(tx:str, size:float=100.00):
     messages = dict()
     messages["addresses"] = [tx["address"]]
     messages["assetName"] = tx["assetName"]
@@ -62,11 +97,11 @@ def tx_to_self(tx, size=1.00):
     return len(neg_delta)
 
 
-def find_latest_flags(asset=ASSETNAMES, satoshis=100000000, count=50):
+def find_latest_flags(asset:list=ASSETNAMES, satoshis:int=10000000000, count:int=50, pub_keys:list = None) -> list:
     try:
         deltas = []
+        latest = []
         for _asset in asset:
-            latest = []
             if logger: logger.info(f"asset is {_asset} satoshis {satoshis}")
             messages = dict()
             try:
@@ -97,8 +132,15 @@ def find_latest_flags(asset=ASSETNAMES, satoshis=100000000, count=50):
                                 "message": vout["asset"]["message"],
                                 "block": transaction["locktime"]
                             }
-                            latest.append(kaw)
-                            if logger: logger.info(f"appended {kaw}")
+                            if pub_keys:
+                                # Doing this for the logging
+                                pub_key = ipfs_to_dict(kaw["message"])["pub_key"]
+                                if pub_key in pub_keys:
+                                    latest.append(kaw)
+                                    if logger: logger.info(f"appended {kaw} with {pub_key=}")
+                            else:
+                                latest.append(kaw)
+                                if logger: logger.info(f"appended {kaw}")
             # else:
             #     if logger: logger.info(f"transaction {tx} satoshis {tx['satoshis']} don't match {satoshis}")
         return sorted(latest[:count], key=lambda message: message["block"], reverse=True)
@@ -106,7 +148,7 @@ def find_latest_flags(asset=ASSETNAMES, satoshis=100000000, count=50):
         log_and_raise(e)
 
 
-def transaction_scriptPubKey(tx_id, vout):
+def transaction_scriptPubKey(tx_id:str, vout:str)->str:
     if logger: logger.info(f"Entered {inspect.stack()[0][3]} with {tx_id}, {vout}")
     if logger: logger.info(f"get raw transaction is {rvn.getrawtransaction(tx_id)['result']}")
     tx_data = rvn.decoderawtransaction(rvn.getrawtransaction(tx_id)['result'])['result']
@@ -115,7 +157,7 @@ def transaction_scriptPubKey(tx_id, vout):
     return issued_scriptPubKey
 
 
-def make_change(transaction):
+def make_change(transaction:dict)->None:
     if logger: logger.info(f"making change of {transaction}")
     address = [key for key in transaction['outputs']][0]
     if logger: logger.info(f"address is {address}")
@@ -148,7 +190,7 @@ def make_change(transaction):
     return # raw_txs
 
 
-def find_input_value(tx):
+def find_input_value(tx:str)-> tuple[bool, str|int]:
     if logger: logger.info(f"handling {tx}")
     raw = rvn.getrawtransaction(tx['txid'])
     decoded = rvn.decoderawtransaction(raw['result'])
@@ -189,6 +231,6 @@ def find_inputs(address, asset_quantity, current_asset):
             raise Exception(f"Ran out of assets {utxos}")
         return txs
 
-def log_and_raise(error):
+def log_and_raise(error:Exception)->Exception:
     if logger: logger.info(f"Exception {type(error)} {str(error)}")
     raise error

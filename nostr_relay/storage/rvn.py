@@ -38,35 +38,8 @@ force_hex_translation = str.maketrans(
     "ghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
 )
 
-def ipfs_to_dict(ipfs_file_hash):
-    return json_loads(ipfs.cat(ipfs_file_hash))
-    # return f'["EVENT","{sub_id}",{{"id":"{event.id}","created_at":{event.created_at},"pubkey":"{event.pubkey}","kind":{event.kind},"sig":"{event.sig}","content":{encode_basestring(event.content)},"tags":[{tags}]}}]'
 
 
-def event_from_blockchain(ipfs_file_hash):
-    # TODO: handle events coming from the blockchain 
-    jd = ipfs_to_dict(ipfs_file_hash)
-
-    # ##### create event
-    # def __init__(
-    #         self,
-    #         pubkey: str='', 
-    #         content: str='', 
-    #         created_at: int=0, 
-    #         kind: int=EventKind.TEXT_NOTE, 
-    #         tags: "list[list[str]]"=[], 
-    #         id: str=None,
-    #         sig: str=None) -> None:
-    
-    return Event(
-        id=jd["id"].hex(),
-        created_at=jd['created_at'],
-        kind=jd["kind"],
-        pubkey=jd["pubkey"].hex(),
-        tags=jd["tags"],
-        sig=jd["sig"].hex(),
-        content=jd["content"],
-    )
 
 def event_from_tuple(row):
     # TODO: handle events coming from the blockchain 
@@ -109,7 +82,7 @@ class RVNStorage(DBStorage):
         # This must be set below the number of possible tokens required to transact 
         # if you are doing events upto 100 and you have 1000 tokens you need to have this below 10.
         self.log.info("Connected to %s", self.rpc_port)
-
+        self.tokens = ASSETNAMES
         metadata = super().get_metadata()
         self.EventTable = metadata.tables["events"]
         self.IdentTable = metadata.tables["identity"]
@@ -131,19 +104,29 @@ class RVNStorage(DBStorage):
                 )
                 row = result.first()
         if not row:
-            result = await self.query_blockchain(self.tokens, event_id)
-            result_event = event_from_blockchain(result)
-            if result_event.kind == 1:
-                self.add_event(result)
-            return result_event
+            event = await self.query_blockchain(self.tokens, event_id)
+            if event.kind == 1:
+                self.add_event(event)
+            return event
         else: 
             return event_from_tuple(row)
         
-    async def query_blockchain(tokens, event_id):
+    async def query_blockchain(tokens: list=ASSETNAMES, event_id: str=None, pub_keys:list=None) -> list[Event]:
+        events = []
         # TODO: querying the blockchain
-        pass
-
-    async def write_event_to_blockchain(event, asset=ASSETNAME):
+        flaged = find_latest_flags(asset=ASSETNAMES, pub_keys=pub_keys)
+        ipfs_hashes = [kaw["message"] for kaw in flaged]
+        if len(ipfs_hashes) > 0:
+            for hash in ipfs_hashes:
+                event = event_from_blockchain(hash) 
+                if event_id:
+                    if event["id"] == event_id:
+                        return [event]
+                else:
+                    events.append(event)
+        return events
+        
+    async def write_event_to_blockchain(event, asset=ASSETNAMES[0]):
         # TODO: write to the blockchain requires rav_utils to handle server creation.
         pass
 
